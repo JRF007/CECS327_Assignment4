@@ -1,0 +1,261 @@
+from dataclasses import dataclass, field
+from typing import Any, Dict, List, Tuple, Set
+import heapq
+import itertools
+
+
+Timestamp = Tuple[int, int]  # (lamport_clock, replica_id)
+
+
+@dataclass(order=True)
+class QueueItem:
+    sort_key: Tuple[int, int] = field(init=False)
+    ts: Timestamp
+    update_id: str
+    op: Tuple[Any, ...]
+    origin_id: int
+
+    def __post_init__(self):
+        self.sort_key = self.ts
+
+
+@dataclass
+class TOBCAST:
+    update_id: str
+    op: Tuple[Any, ...]
+    ts: Timestamp
+    sender_id: int  # original sender of the update
+
+
+@dataclass
+class ACK:
+    update_id: str
+    ts: Timestamp
+    sender_id: int  # replica sending the ack
+
+
+class Network:
+    """
+    Simple reliable message-passing simulator.
+    Messages are queued and later delivered in FIFO order.
+    """
+    def __init__(self):
+        self.replicas: Dict[int, "Replica"] = {}
+        self.queue: List[Tuple[int, object]] = []  # (destination_replica_id, message)
+
+    def register(self, replica: "Replica") -> None:
+        self.replicas[replica.replica_id] = replica
+
+    def send(self, dest_id: int, msg: object) -> None:
+        self.queue.append((dest_id, msg))
+
+    def multicast(self, msg: object) -> None:
+        for rid in sorted(self.replicas.keys()):
+            self.send(rid, msg)
+
+    def run(self) -> None:
+        """
+        Deliver messages until the network queue is empty.
+        """
+        while self.queue:
+            dest_id, msg = self.queue.pop(0)
+            self.replicas[dest_id].on_receive(msg)
+
+
+class Replica:
+    def __init__(self, replica_id: int, replica_ids: List[int], network: Network):
+        self.replica_id = replica_id
+        self.replica_ids = sorted(replica_ids)
+        self.network = network
+
+        # Lamport logical clock
+        self.clock = 0
+
+        # Holdback queue ordered by (lamport_clock, replica_id)
+        self.holdback: List[QueueItem] = []
+
+        # Track queued updates so duplicates are not inserted again
+        self.known_updates: Dict[str, QueueItem] = {}
+
+        # Track delivered updates so duplicates are not applied
+        self.delivered: Set[str] = set()
+
+        # max_seen[k] = largest full timestamp seen from replica k
+        # initialize to smaller than any real timestamp
+        self.max_seen: Dict[int, Timestamp] = {
+            rid: (-1, -1) for rid in self.replica_ids
+        }
+
+        # Simple replicated key-value store
+        self.store: Dict[str, Any] = {}
+
+        # For debugging / proof of order
+        self.delivery_log: List[str] = []
+
+    def _next_local_timestamp(self) -> Timestamp:
+        self.clock += 1
+        return (self.clock, self.replica_id)
+
+    def _update_clock_on_receive(self, incoming_ts: Timestamp) -> None:
+        self.clock = max(self.clock, incoming_ts[0]) + 1
+
+    def _max_ts(self, a: Timestamp, b: Timestamp) -> Timestamp:
+        return a if a > b else b
+
+    def _enqueue_if_new(self, update_id: str, op: Tuple[Any, ...], ts: Timestamp, origin_id: int) -> None:
+        if update_id in self.known_updates:
+            return
+        item = QueueItem(ts=ts, update_id=update_id, op=op, origin_id=origin_id)
+        self.known_updates[update_id] = item
+        heapq.heappush(self.holdback, item)
+
+    def client_update(self, update_id: str, op: Tuple[Any, ...]) -> None:
+        """
+        Called when a client sends an update to this replica.
+        """
+        ts = self._next_local_timestamp()
+
+        # Insert locally
+        self._enqueue_if_new(update_id, op, ts, self.replica_id)
+
+        # Record local progress
+        self.max_seen[self.replica_id] = self._max_ts(self.max_seen[self.replica_id], ts)
+
+        # Multicast the update
+        msg = TOBCAST(update_id=update_id, op=op, ts=ts, sender_id=self.replica_id)
+        self.network.multicast(msg)
+
+        # Check if anything became deliverable
+        self.try_deliver()
+
+    def on_receive(self, msg: object) -> None:
+        if isinstance(msg, TOBCAST):
+            self.on_receive_tobcast(msg)
+        elif isinstance(msg, ACK):
+            self.on_receive_ack(msg)
+        else:
+            raise ValueError(f"Unknown message type: {type(msg)}")
+
+    def on_receive_tobcast(self, msg: TOBCAST) -> None:
+        self._update_clock_on_receive(msg.ts)
+
+        # Queue the update if not seen before
+        self._enqueue_if_new(msg.update_id, msg.op, msg.ts, msg.sender_id)
+
+        # This tells us the original sender has produced timestamp msg.ts
+        self.max_seen[msg.sender_id] = self._max_ts(self.max_seen[msg.sender_id], msg.ts)
+
+        # ACK back to all replicas to signal this replica has seen progress at least up to msg.ts
+        ack = ACK(update_id=msg.update_id, ts=msg.ts, sender_id=self.replica_id)
+        self.network.multicast(ack)
+
+        self.try_deliver()
+
+    def on_receive_ack(self, ack: ACK) -> None:
+        self._update_clock_on_receive(ack.ts)
+
+        # ACK means ack.sender_id has now progressed past/through this timestamped update
+        self.max_seen[ack.sender_id] = self._max_ts(self.max_seen[ack.sender_id], ack.ts)
+
+        self.try_deliver()
+
+    def can_deliver_head(self) -> bool:
+        if not self.holdback:
+            return False
+
+        head = self.holdback[0]
+
+        # Delivery rule:
+        # head message is safe only if every replica has progressed beyond head.ts
+        for rid in self.replica_ids:
+            if self.max_seen[rid] <= head.ts:
+                return False
+        return True
+
+    def try_deliver(self) -> None:
+        while self.holdback and self.can_deliver_head():
+            head = heapq.heappop(self.holdback)
+
+            if head.update_id in self.delivered:
+                continue
+
+            self.apply(head.op)
+            self.delivered.add(head.update_id)
+            self.delivery_log.append(head.update_id)
+
+    def apply(self, op: Tuple[Any, ...]) -> None:
+        """
+        Supported operations:
+          ("put", key, value)
+          ("append", key, suffix)
+          ("incr", key)
+        """
+        kind = op[0]
+
+        if kind == "put":
+            _, key, value = op
+            self.store[key] = value
+
+        elif kind == "append":
+            _, key, suffix = op
+            current = self.store.get(key, "")
+            self.store[key] = str(current) + str(suffix)
+
+        elif kind == "incr":
+            _, key = op
+            current = self.store.get(key, 0)
+            self.store[key] = current + 1
+
+        else:
+            raise ValueError(f"Unsupported operation: {op}")
+
+    def state_summary(self) -> str:
+        return (
+            f"Replica {self.replica_id} | "
+            f"clock={self.clock} | "
+            f"delivered={self.delivery_log} | "
+            f"store={self.store}"
+        )
+
+
+def demo():
+    network = Network()
+    replica_ids = [1, 2, 3]
+    replicas = {}
+
+    for rid in replica_ids:
+        replica = Replica(rid, replica_ids, network)
+        replicas[rid] = replica
+        network.register(replica)
+
+    # Two concurrent-looking client updates sent to different replicas
+    replicas[1].client_update("u1", ("append", "x", "A"))
+    replicas[2].client_update("u2", ("append", "x", "B"))
+    replicas[3].client_update("u3", ("incr", "counter"))
+
+    # Process all network traffic
+    network.run()
+
+    # In some executions, head messages may still wait for strictly greater progress.
+    # A common way to advance progress is additional multicasts.
+    replicas[1].client_update("u4", ("put", "done", True))
+    network.run()
+
+    print("Final states:")
+    for rid in replica_ids:
+        print(replicas[rid].state_summary())
+
+    # Check all replicas delivered in same order and reached same state
+    first_log = replicas[1].delivery_log
+    first_store = replicas[1].store
+
+    same_order = all(replicas[rid].delivery_log == first_log for rid in replica_ids)
+    same_state = all(replicas[rid].store == first_store for rid in replica_ids)
+
+    print("\nConsistency checks:")
+    print("Same delivery order across replicas:", same_order)
+    print("Same final store across replicas:", same_state)
+
+
+if __name__ == "__main__":
+    demo()
