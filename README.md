@@ -21,5 +21,4 @@ The implementation uses:
 Python 3.x
 
 ### Run command
-```bash
 python3 Part_A.py
