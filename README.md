@@ -7,18 +7,18 @@ The goal is to ensure that when clients send update operations to different repl
 The implementation uses:
 - Lamport logical clocks
 - deterministic tie-breaking by replica ID
-- a holdback queue** ordered by `(timestamp, replica_id)`
+- a holdback queue** ordered by (timestamp, replica_id)
 - ACK/progress messages
-- a delivery rule based on `max_seen[k] > head.ts` for all replicas
+- a delivery rule based on max_seen[k] > head.ts for all replicas
 
 ## Files
-- `Part_A.py` — main simulator for Part A
-- `README.md` — instructions and explanation
-- `logs/` — captured terminal output for required experiments
+- Part_A.py — main simulator for Part A
+- README.md — instructions and explanation
+- logs/ — captured terminal output for required experiments
 
 ## How to Run
 ### Requirements
-- Python 3.x
+Python 3.x
 
 ### Run command
 ```bash
