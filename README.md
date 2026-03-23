@@ -22,3 +22,9 @@ Python 3.x
 
 ### Run command
 python3 Part_A.py
+
+# Part C - Short Written Questions 
+## 1. 
+Replication needs total ordering because conflicting operations can produce different results if they are applied in different orders. For example, if two replicas receive concurrent updates append(x, "A") and append(x, "B"), one replica might produce "AB" while another produces "BA". A global total order ensures all replicas apply updates in the same sequence, so they remain consistent.
+## 2. 
+Lamport clocks guarantee a consistent ordering of events that respects causality. If event A happened before event B, then a timestamp(A) < timestamp(B). However, they do not reflect real-time ordering, so two concurrent events may be ordered arbitrarily. By themselves, Lamport clocks provide only a partial order, but when combined with a tie-breaker (like replica ID), they can be used to define a total order.
