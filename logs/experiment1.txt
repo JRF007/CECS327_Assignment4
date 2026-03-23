@@ -1,0 +1,8 @@
+Final states:
+Replica 1 | clock=22 | delivered=['u1', 'u2', 'u3', 'u4'] | store={'x': 'AB', 'counter': 1, 'done': True}
+Replica 2 | clock=21 | delivered=['u1', 'u2', 'u3', 'u4'] | store={'x': 'AB', 'counter': 1, 'done': True}
+Replica 3 | clock=21 | delivered=['u1', 'u2', 'u3', 'u4'] | store={'x': 'AB', 'counter': 1, 'done': True}
+
+Consistency checks:
+Same delivery order across replicas: True
+Same final store across replicas: True

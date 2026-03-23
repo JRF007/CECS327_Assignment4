@@ -1,7 +1,21 @@
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Tuple, Set
 import heapq
+import os
+import sys
 
+class Tee:
+    def __init__(self, *files):
+        self.files = files
+
+    def write(self, data):
+        for f in self.files:
+            f.write(data)
+            f.flush()
+
+    def flush(self):
+        for f in self.files:
+            f.flush()
 Timestamp = Tuple[int, int]  # (lamport_clock, replica_id)
 
 @dataclass(order=True)
@@ -30,10 +44,6 @@ class ACK:
     sender_id: int             # replica sending the ACK
 
 class Network:
-    """
-    Reliable FIFO-style simulator.
-    Messages are delivered in the order they were enqueued.
-    """
     def __init__(self):
         self.replicas: Dict[int, "Replica"] = {}
         self.queue: List[Tuple[int, object]] = []
@@ -90,9 +100,6 @@ class Replica:
         heapq.heappush(self.holdback, item)
 
     def client_update(self, update_id: str, op: Tuple[Any, ...]) -> None:
-        """
-        Client sends an update to this replica.
-        """
         ts = self._bump_clock()
         # Add locally
         self._enqueue_if_new(update_id, op, ts, self.replica_id)
@@ -102,6 +109,7 @@ class Replica:
         msg = TOBCAST(update_id=update_id, op=op, ts=ts, sender_id=self.replica_id)
         self.network.multicast(msg)
         self.try_deliver()
+        print(f"Replica {self.replica_id} client update {update_id} assigned ts={ts}")
 
     def on_receive(self, msg: object) -> None:
         if isinstance(msg, TOBCAST):
@@ -128,6 +136,7 @@ class Replica:
         )
         self.network.multicast(ack)
         self.try_deliver()
+        print(f"Replica {self.replica_id} received TOBCAST {msg.update_id} ts={msg.ts} from R{msg.sender_id}")
 
     def on_receive_ack(self, ack: ACK) -> None:
         # Lamport receive rule using the ack sender's progress timestamp
@@ -156,14 +165,9 @@ class Replica:
             self.apply(head.op)
             self.delivered.add(head.update_id)
             self.delivery_log.append(head.update_id)
+            print(f"Replica {self.replica_id} delivered {head.update_id} ts={head.ts}")
 
     def apply(self, op: Tuple[Any, ...]) -> None:
-        """
-        Supported operations:
-          ("put", key, value)
-          ("append", key, suffix)
-          ("incr", key)
-        """
         kind = op[0]
         if kind == "put":
             _, key, value = op
@@ -215,4 +219,13 @@ def demo():
     print("Same final store across replicas:", same_state)
 
 if __name__ == "__main__":
-    demo()
+    os.makedirs("logs", exist_ok=True)
+    log_path = os.path.join("logs", "experiment1.txt")
+    with open(log_path, "w", encoding="utf-8") as log_file:
+        original_stdout = sys.stdout
+        sys.stdout = Tee(sys.stdout, log_file)
+        try:
+            demo()
+        finally:
+            sys.stdout = original_stdout
+    print(f"Run complete. Log written to {log_path}")
