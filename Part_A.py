@@ -3,6 +3,7 @@ from typing import Any, Dict, List, Tuple, Set
 import heapq
 import os
 import sys
+import random
 
 class Tee:
     def __init__(self, *files):
@@ -218,6 +219,70 @@ def demo():
     print("Same delivery order across replicas:", same_order)
     print("Same final store across replicas:", same_state)
 
+
+def Part_B():
+    network = Network()
+    replica_ids = [1, 2, 3]
+    replicas = {}
+
+    for rid in replica_ids:
+        replica = Replica(rid, replica_ids, network)
+        replicas[rid] = replica
+        network.register(replica)
+
+    counter = 1
+    print("1. Concurrent Conflicting Updates\n")
+    for i in range(10):
+        rid = random.choice(replica_ids)
+
+        # FORCE conflict: same key "x"
+        op_type = random.choice(["put", "append"])
+
+        if op_type == "put":
+            op = ("put", "x", random.randint(1, 10))
+        else:
+            op = ("append", "x", random.choice(["A", "B"]))
+
+        replicas[rid].client_update(f"u{counter}", op)
+        counter += 1
+
+    print("2. High Contention\n")
+    for i in range(25):
+        rid = random.choice(replica_ids)
+        op = ("append", "x", random.choice(["A", "B"]))
+
+        replicas[rid].client_update(f"u{counter}", op)
+        counter += 1
+
+    print("3. Non-conflicting Updates")
+    keys = ["X", "Y", "Z"]
+
+    for i in range(10):
+        rid = random.choice(replica_ids)
+        key = random.choice(keys)
+        op = ("put", key, random.randint(1, 10))
+
+        replicas[rid].client_update(f"u{counter}", op)
+        counter += 1
+
+    network.run()
+
+    print("Final States:")
+    for rid in replica_ids:
+        print(replicas[rid].summary())
+
+    first_log = replicas[1].delivery_log
+    first_store = replicas[1].store
+
+    same_order = all(replicas[rid].delivery_log == first_log for rid in replica_ids)
+    same_state = all(replicas[rid].store == first_store for rid in replica_ids)
+
+    print("\nConsistency checks:")
+    print("Same delivery order across replicas:", same_order)
+    print("Same final store across replicas:", same_state)
+
+
+
 if __name__ == "__main__":
     os.makedirs("logs", exist_ok=True)
     log_path = os.path.join("logs", "experiment1.txt")
@@ -225,7 +290,7 @@ if __name__ == "__main__":
         original_stdout = sys.stdout
         sys.stdout = Tee(sys.stdout, log_file)
         try:
-            demo()
+            Part_B()
         finally:
             sys.stdout = original_stdout
     print(f"Run complete. Log written to {log_path}")
