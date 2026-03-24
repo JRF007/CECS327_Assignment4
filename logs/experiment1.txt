@@ -1,7 +1,350 @@
-Final states:
-Replica 1 | clock=22 | delivered=['u1', 'u2', 'u3', 'u4'] | store={'x': 'AB', 'counter': 1, 'done': True}
-Replica 2 | clock=21 | delivered=['u1', 'u2', 'u3', 'u4'] | store={'x': 'AB', 'counter': 1, 'done': True}
-Replica 3 | clock=21 | delivered=['u1', 'u2', 'u3', 'u4'] | store={'x': 'AB', 'counter': 1, 'done': True}
+
+1. Concurrent Conflicting Updates
+
+Replica 1 client update u1 assigned ts=(1, 1)
+Replica 3 client update u2 assigned ts=(1, 3)
+Replica 1 client update u3 assigned ts=(2, 1)
+Replica 1 client update u4 assigned ts=(3, 1)
+Replica 3 client update u5 assigned ts=(2, 3)
+Replica 2 client update u6 assigned ts=(1, 2)
+Replica 2 client update u7 assigned ts=(2, 2)
+Replica 3 client update u8 assigned ts=(3, 3)
+Replica 3 client update u9 assigned ts=(4, 3)
+Replica 1 client update u10 assigned ts=(4, 1)
+Replica 1 received TOBCAST u1 ts=(1, 1) from R1
+Replica 2 received TOBCAST u1 ts=(1, 1) from R1
+Replica 3 received TOBCAST u1 ts=(1, 1) from R1
+Replica 1 received TOBCAST u2 ts=(1, 3) from R3
+Replica 2 received TOBCAST u2 ts=(1, 3) from R3
+Replica 3 received TOBCAST u2 ts=(1, 3) from R3
+Replica 1 received TOBCAST u3 ts=(2, 1) from R1
+Replica 2 delivered u1 ts=(1, 1)
+Replica 2 delivered u6 ts=(1, 2)
+Replica 2 received TOBCAST u3 ts=(2, 1) from R1
+Replica 3 received TOBCAST u3 ts=(2, 1) from R1
+Replica 1 received TOBCAST u4 ts=(3, 1) from R1
+Replica 2 received TOBCAST u4 ts=(3, 1) from R1
+Replica 3 received TOBCAST u4 ts=(3, 1) from R1
+Replica 1 received TOBCAST u5 ts=(2, 3) from R3
+Replica 2 delivered u2 ts=(1, 3)
+Replica 2 delivered u3 ts=(2, 1)
+Replica 2 delivered u7 ts=(2, 2)
+Replica 2 received TOBCAST u5 ts=(2, 3) from R3
+Replica 3 received TOBCAST u5 ts=(2, 3) from R3
+Replica 1 delivered u1 ts=(1, 1)
+Replica 1 received TOBCAST u6 ts=(1, 2) from R2
+Replica 2 received TOBCAST u6 ts=(1, 2) from R2
+Replica 3 delivered u1 ts=(1, 1)
+Replica 3 received TOBCAST u6 ts=(1, 2) from R2
+Replica 1 delivered u6 ts=(1, 2)
+Replica 1 delivered u2 ts=(1, 3)
+Replica 1 delivered u3 ts=(2, 1)
+Replica 1 received TOBCAST u7 ts=(2, 2) from R2
+Replica 2 received TOBCAST u7 ts=(2, 2) from R2
+Replica 3 delivered u6 ts=(1, 2)
+Replica 3 delivered u2 ts=(1, 3)
+Replica 3 delivered u3 ts=(2, 1)
+Replica 3 received TOBCAST u7 ts=(2, 2) from R2
+Replica 1 received TOBCAST u8 ts=(3, 3) from R3
+Replica 2 delivered u5 ts=(2, 3)
+Replica 2 received TOBCAST u8 ts=(3, 3) from R3
+Replica 3 received TOBCAST u8 ts=(3, 3) from R3
+Replica 1 received TOBCAST u9 ts=(4, 3) from R3
+Replica 2 received TOBCAST u9 ts=(4, 3) from R3
+Replica 3 received TOBCAST u9 ts=(4, 3) from R3
+Replica 1 received TOBCAST u10 ts=(4, 1) from R1
+Replica 2 delivered u4 ts=(3, 1)
+Replica 2 delivered u8 ts=(3, 3)
+Replica 2 received TOBCAST u10 ts=(4, 1) from R1
+Replica 3 received TOBCAST u10 ts=(4, 1) from R1
+Replica 2 delivered u10 ts=(4, 1)
+Replica 1 delivered u7 ts=(2, 2)
+Replica 1 delivered u5 ts=(2, 3)
+Replica 1 delivered u4 ts=(3, 1)
+Replica 1 delivered u8 ts=(3, 3)
+Replica 1 delivered u10 ts=(4, 1)
+Replica 3 delivered u7 ts=(2, 2)
+Replica 3 delivered u5 ts=(2, 3)
+Replica 3 delivered u4 ts=(3, 1)
+Replica 3 delivered u8 ts=(3, 3)
+Replica 3 delivered u10 ts=(4, 1)
+Replica 2 delivered u9 ts=(4, 3)
+Replica 1 delivered u9 ts=(4, 3)
+Replica 3 delivered u9 ts=(4, 3)
+
+Final States:
+Replica 1 | clock=54 | delivered=['u1', 'u6', 'u2', 'u3', 'u7', 'u5', 'u4', 'u8', 'u10', 'u9'] | store={'x': '10BBA'}
+Replica 2 | clock=52 | delivered=['u1', 'u6', 'u2', 'u3', 'u7', 'u5', 'u4', 'u8', 'u10', 'u9'] | store={'x': '10BBA'}
+Replica 3 | clock=54 | delivered=['u1', 'u6', 'u2', 'u3', 'u7', 'u5', 'u4', 'u8', 'u10', 'u9'] | store={'x': '10BBA'}
+
+Consistency checks:
+Same delivery order across replicas: True
+Same final store across replicas: True
+
+2. High Contention
+
+Replica 2 client update u1 assigned ts=(1, 2)
+Replica 1 client update u2 assigned ts=(1, 1)
+Replica 3 client update u3 assigned ts=(1, 3)
+Replica 1 client update u4 assigned ts=(2, 1)
+Replica 2 client update u5 assigned ts=(2, 2)
+Replica 2 client update u6 assigned ts=(3, 2)
+Replica 1 client update u7 assigned ts=(3, 1)
+Replica 2 client update u8 assigned ts=(4, 2)
+Replica 1 client update u9 assigned ts=(4, 1)
+Replica 3 client update u10 assigned ts=(2, 3)
+Replica 3 client update u11 assigned ts=(3, 3)
+Replica 1 client update u12 assigned ts=(5, 1)
+Replica 1 client update u13 assigned ts=(6, 1)
+Replica 2 client update u14 assigned ts=(5, 2)
+Replica 3 client update u15 assigned ts=(4, 3)
+Replica 3 client update u16 assigned ts=(5, 3)
+Replica 1 client update u17 assigned ts=(7, 1)
+Replica 1 client update u18 assigned ts=(8, 1)
+Replica 3 client update u19 assigned ts=(6, 3)
+Replica 3 client update u20 assigned ts=(7, 3)
+Replica 2 client update u21 assigned ts=(6, 2)
+Replica 1 client update u22 assigned ts=(9, 1)
+Replica 1 client update u23 assigned ts=(10, 1)
+Replica 2 client update u24 assigned ts=(7, 2)
+Replica 2 client update u25 assigned ts=(8, 2)
+Replica 1 received TOBCAST u1 ts=(1, 2) from R2
+Replica 2 received TOBCAST u1 ts=(1, 2) from R2
+Replica 3 received TOBCAST u1 ts=(1, 2) from R2
+Replica 1 received TOBCAST u2 ts=(1, 1) from R1
+Replica 2 received TOBCAST u2 ts=(1, 1) from R1
+Replica 3 received TOBCAST u2 ts=(1, 1) from R1
+Replica 1 delivered u2 ts=(1, 1)
+Replica 1 received TOBCAST u3 ts=(1, 3) from R3
+Replica 2 received TOBCAST u3 ts=(1, 3) from R3
+Replica 3 received TOBCAST u3 ts=(1, 3) from R3
+Replica 1 received TOBCAST u4 ts=(2, 1) from R1
+Replica 2 delivered u2 ts=(1, 1)
+Replica 2 delivered u1 ts=(1, 2)
+Replica 2 received TOBCAST u4 ts=(2, 1) from R1
+Replica 3 delivered u2 ts=(1, 1)
+Replica 3 received TOBCAST u4 ts=(2, 1) from R1
+Replica 1 delivered u1 ts=(1, 2)
+Replica 1 received TOBCAST u5 ts=(2, 2) from R2
+Replica 2 received TOBCAST u5 ts=(2, 2) from R2
+Replica 3 delivered u1 ts=(1, 2)
+Replica 3 delivered u3 ts=(1, 3)
+Replica 3 received TOBCAST u5 ts=(2, 2) from R2
+Replica 1 received TOBCAST u6 ts=(3, 2) from R2
+Replica 2 received TOBCAST u6 ts=(3, 2) from R2
+Replica 3 received TOBCAST u6 ts=(3, 2) from R2
+Replica 1 received TOBCAST u7 ts=(3, 1) from R1
+Replica 2 received TOBCAST u7 ts=(3, 1) from R1
+Replica 3 delivered u4 ts=(2, 1)
+Replica 3 delivered u5 ts=(2, 2)
+Replica 3 delivered u10 ts=(2, 3)
+Replica 3 received TOBCAST u7 ts=(3, 1) from R1
+Replica 1 received TOBCAST u8 ts=(4, 2) from R2
+Replica 2 received TOBCAST u8 ts=(4, 2) from R2
+Replica 3 received TOBCAST u8 ts=(4, 2) from R2
+Replica 1 received TOBCAST u9 ts=(4, 1) from R1
+Replica 2 received TOBCAST u9 ts=(4, 1) from R1
+Replica 3 delivered u7 ts=(3, 1)
+Replica 3 delivered u6 ts=(3, 2)
+Replica 3 delivered u11 ts=(3, 3)
+Replica 3 received TOBCAST u9 ts=(4, 1) from R1
+Replica 1 delivered u3 ts=(1, 3)
+Replica 1 delivered u4 ts=(2, 1)
+Replica 1 delivered u5 ts=(2, 2)
+Replica 1 received TOBCAST u10 ts=(2, 3) from R3
+Replica 2 delivered u3 ts=(1, 3)
+Replica 2 delivered u4 ts=(2, 1)
+Replica 2 delivered u5 ts=(2, 2)
+Replica 2 received TOBCAST u10 ts=(2, 3) from R3
+Replica 3 received TOBCAST u10 ts=(2, 3) from R3
+Replica 1 delivered u10 ts=(2, 3)
+Replica 1 delivered u7 ts=(3, 1)
+Replica 1 delivered u6 ts=(3, 2)
+Replica 1 received TOBCAST u11 ts=(3, 3) from R3
+Replica 2 delivered u10 ts=(2, 3)
+Replica 2 delivered u7 ts=(3, 1)
+Replica 2 delivered u6 ts=(3, 2)
+Replica 2 received TOBCAST u11 ts=(3, 3) from R3
+Replica 3 received TOBCAST u11 ts=(3, 3) from R3
+Replica 1 received TOBCAST u12 ts=(5, 1) from R1
+Replica 2 received TOBCAST u12 ts=(5, 1) from R1
+Replica 3 delivered u9 ts=(4, 1)
+Replica 3 received TOBCAST u12 ts=(5, 1) from R1
+Replica 1 received TOBCAST u13 ts=(6, 1) from R1
+Replica 2 received TOBCAST u13 ts=(6, 1) from R1
+Replica 3 received TOBCAST u13 ts=(6, 1) from R1
+Replica 1 received TOBCAST u14 ts=(5, 2) from R2
+Replica 2 received TOBCAST u14 ts=(5, 2) from R2
+Replica 3 delivered u8 ts=(4, 2)
+Replica 3 delivered u15 ts=(4, 3)
+Replica 3 delivered u12 ts=(5, 1)
+Replica 3 received TOBCAST u14 ts=(5, 2) from R2
+Replica 1 delivered u11 ts=(3, 3)
+Replica 1 delivered u9 ts=(4, 1)
+Replica 1 delivered u8 ts=(4, 2)
+Replica 1 received TOBCAST u15 ts=(4, 3) from R3
+Replica 2 delivered u11 ts=(3, 3)
+Replica 2 delivered u9 ts=(4, 1)
+Replica 2 delivered u8 ts=(4, 2)
+Replica 2 received TOBCAST u15 ts=(4, 3) from R3
+Replica 3 received TOBCAST u15 ts=(4, 3) from R3
+Replica 1 delivered u15 ts=(4, 3)
+Replica 1 delivered u12 ts=(5, 1)
+Replica 1 received TOBCAST u16 ts=(5, 3) from R3
+Replica 2 delivered u15 ts=(4, 3)
+Replica 2 delivered u12 ts=(5, 1)
+Replica 2 delivered u14 ts=(5, 2)
+Replica 2 received TOBCAST u16 ts=(5, 3) from R3
+Replica 3 received TOBCAST u16 ts=(5, 3) from R3
+Replica 1 received TOBCAST u17 ts=(7, 1) from R1
+Replica 2 received TOBCAST u17 ts=(7, 1) from R1
+Replica 3 received TOBCAST u17 ts=(7, 1) from R1
+Replica 1 received TOBCAST u18 ts=(8, 1) from R1
+Replica 2 received TOBCAST u18 ts=(8, 1) from R1
+Replica 3 received TOBCAST u18 ts=(8, 1) from R1
+Replica 1 received TOBCAST u19 ts=(6, 3) from R3
+Replica 2 delivered u16 ts=(5, 3)
+Replica 2 delivered u13 ts=(6, 1)
+Replica 2 delivered u21 ts=(6, 2)
+Replica 2 received TOBCAST u19 ts=(6, 3) from R3
+Replica 3 received TOBCAST u19 ts=(6, 3) from R3
+Replica 1 received TOBCAST u20 ts=(7, 3) from R3
+Replica 2 delivered u19 ts=(6, 3)
+Replica 2 delivered u17 ts=(7, 1)
+Replica 2 delivered u24 ts=(7, 2)
+Replica 2 received TOBCAST u20 ts=(7, 3) from R3
+Replica 3 received TOBCAST u20 ts=(7, 3) from R3
+Replica 1 delivered u14 ts=(5, 2)
+Replica 1 delivered u16 ts=(5, 3)
+Replica 1 delivered u13 ts=(6, 1)
+Replica 1 received TOBCAST u21 ts=(6, 2) from R2
+Replica 2 received TOBCAST u21 ts=(6, 2) from R2
+Replica 3 delivered u14 ts=(5, 2)
+Replica 3 delivered u16 ts=(5, 3)
+Replica 3 delivered u13 ts=(6, 1)
+Replica 3 received TOBCAST u21 ts=(6, 2) from R2
+Replica 1 received TOBCAST u22 ts=(9, 1) from R1
+Replica 2 received TOBCAST u22 ts=(9, 1) from R1
+Replica 3 received TOBCAST u22 ts=(9, 1) from R1
+Replica 1 received TOBCAST u23 ts=(10, 1) from R1
+Replica 2 received TOBCAST u23 ts=(10, 1) from R1
+Replica 3 received TOBCAST u23 ts=(10, 1) from R1
+Replica 1 delivered u21 ts=(6, 2)
+Replica 1 delivered u19 ts=(6, 3)
+Replica 1 delivered u17 ts=(7, 1)
+Replica 1 received TOBCAST u24 ts=(7, 2) from R2
+Replica 2 received TOBCAST u24 ts=(7, 2) from R2
+Replica 3 delivered u21 ts=(6, 2)
+Replica 3 delivered u19 ts=(6, 3)
+Replica 3 delivered u17 ts=(7, 1)
+Replica 3 received TOBCAST u24 ts=(7, 2) from R2
+Replica 1 delivered u24 ts=(7, 2)
+Replica 1 received TOBCAST u25 ts=(8, 2) from R2
+Replica 2 received TOBCAST u25 ts=(8, 2) from R2
+Replica 3 delivered u24 ts=(7, 2)
+Replica 3 delivered u20 ts=(7, 3)
+Replica 3 delivered u18 ts=(8, 1)
+Replica 3 received TOBCAST u25 ts=(8, 2) from R2
+Replica 3 delivered u25 ts=(8, 2)
+Replica 3 delivered u22 ts=(9, 1)
+Replica 3 delivered u23 ts=(10, 1)
+Replica 1 delivered u20 ts=(7, 3)
+Replica 1 delivered u18 ts=(8, 1)
+Replica 1 delivered u25 ts=(8, 2)
+Replica 1 delivered u22 ts=(9, 1)
+Replica 2 delivered u20 ts=(7, 3)
+Replica 2 delivered u18 ts=(8, 1)
+Replica 2 delivered u25 ts=(8, 2)
+Replica 2 delivered u22 ts=(9, 1)
+Replica 1 delivered u23 ts=(10, 1)
+Replica 2 delivered u23 ts=(10, 1)
+
+Final States:
+Replica 1 | clock=135 | delivered=['u2', 'u1', 'u3', 'u4', 'u5', 'u10', 'u7', 'u6', 'u11', 'u9', 'u8', 'u15', 'u12', 'u14', 'u16', 'u13', 'u21', 'u19', 'u17', 'u24', 'u20', 'u18', 'u25', 'u22', 'u23'] | store={'x': 'BBBBABBBBABAAABABABAABAAB'}
+Replica 2 | clock=133 | delivered=['u2', 'u1', 'u3', 'u4', 'u5', 'u10', 'u7', 'u6', 'u11', 'u9', 'u8', 'u15', 'u12', 'u14', 'u16', 'u13', 'u21', 'u19', 'u17', 'u24', 'u20', 'u18', 'u25', 'u22', 'u23'] | store={'x': 'BBBBABBBBABAAABABABAABAAB'}
+Replica 3 | clock=132 | delivered=['u2', 'u1', 'u3', 'u4', 'u5', 'u10', 'u7', 'u6', 'u11', 'u9', 'u8', 'u15', 'u12', 'u14', 'u16', 'u13', 'u21', 'u19', 'u17', 'u24', 'u20', 'u18', 'u25', 'u22', 'u23'] | store={'x': 'BBBBABBBBABAAABABABAABAAB'}
+
+Consistency checks:
+Same delivery order across replicas: True
+Same final store across replicas: True
+
+3. Non-conflicting Updates
+
+Replica 2 client update u1 assigned ts=(1, 2)
+Replica 3 client update u2 assigned ts=(1, 3)
+Replica 2 client update u3 assigned ts=(2, 2)
+Replica 3 client update u4 assigned ts=(2, 3)
+Replica 1 client update u5 assigned ts=(1, 1)
+Replica 3 client update u6 assigned ts=(3, 3)
+Replica 1 client update u7 assigned ts=(2, 1)
+Replica 3 client update u8 assigned ts=(4, 3)
+Replica 1 client update u9 assigned ts=(3, 1)
+Replica 2 client update u10 assigned ts=(3, 2)
+Replica 1 received TOBCAST u1 ts=(1, 2) from R2
+Replica 2 received TOBCAST u1 ts=(1, 2) from R2
+Replica 3 received TOBCAST u1 ts=(1, 2) from R2
+Replica 1 delivered u5 ts=(1, 1)
+Replica 1 received TOBCAST u2 ts=(1, 3) from R3
+Replica 2 received TOBCAST u2 ts=(1, 3) from R3
+Replica 3 received TOBCAST u2 ts=(1, 3) from R3
+Replica 1 delivered u1 ts=(1, 2)
+Replica 1 received TOBCAST u3 ts=(2, 2) from R2
+Replica 2 received TOBCAST u3 ts=(2, 2) from R2
+Replica 3 received TOBCAST u3 ts=(2, 2) from R2
+Replica 1 delivered u2 ts=(1, 3)
+Replica 1 delivered u7 ts=(2, 1)
+Replica 1 received TOBCAST u4 ts=(2, 3) from R3
+Replica 2 received TOBCAST u4 ts=(2, 3) from R3
+Replica 3 received TOBCAST u4 ts=(2, 3) from R3
+Replica 1 received TOBCAST u5 ts=(1, 1) from R1
+Replica 2 received TOBCAST u5 ts=(1, 1) from R1
+Replica 3 received TOBCAST u5 ts=(1, 1) from R1
+Replica 1 received TOBCAST u6 ts=(3, 3) from R3
+Replica 2 received TOBCAST u6 ts=(3, 3) from R3
+Replica 3 received TOBCAST u6 ts=(3, 3) from R3
+Replica 1 received TOBCAST u7 ts=(2, 1) from R1
+Replica 2 delivered u5 ts=(1, 1)
+Replica 2 delivered u1 ts=(1, 2)
+Replica 2 delivered u2 ts=(1, 3)
+Replica 2 received TOBCAST u7 ts=(2, 1) from R1
+Replica 3 delivered u5 ts=(1, 1)
+Replica 3 delivered u1 ts=(1, 2)
+Replica 3 delivered u2 ts=(1, 3)
+Replica 3 received TOBCAST u7 ts=(2, 1) from R1
+Replica 1 received TOBCAST u8 ts=(4, 3) from R3
+Replica 2 received TOBCAST u8 ts=(4, 3) from R3
+Replica 3 received TOBCAST u8 ts=(4, 3) from R3
+Replica 1 received TOBCAST u9 ts=(3, 1) from R1
+Replica 2 delivered u7 ts=(2, 1)
+Replica 2 delivered u3 ts=(2, 2)
+Replica 2 delivered u4 ts=(2, 3)
+Replica 2 received TOBCAST u9 ts=(3, 1) from R1
+Replica 3 delivered u7 ts=(2, 1)
+Replica 3 received TOBCAST u9 ts=(3, 1) from R1
+Replica 1 delivered u3 ts=(2, 2)
+Replica 1 delivered u4 ts=(2, 3)
+Replica 1 delivered u9 ts=(3, 1)
+Replica 1 received TOBCAST u10 ts=(3, 2) from R2
+Replica 2 received TOBCAST u10 ts=(3, 2) from R2
+Replica 3 delivered u3 ts=(2, 2)
+Replica 3 delivered u4 ts=(2, 3)
+Replica 3 received TOBCAST u10 ts=(3, 2) from R2
+Replica 2 delivered u9 ts=(3, 1)
+Replica 2 delivered u10 ts=(3, 2)
+Replica 2 delivered u6 ts=(3, 3)
+Replica 3 delivered u9 ts=(3, 1)
+Replica 1 delivered u10 ts=(3, 2)
+Replica 1 delivered u6 ts=(3, 3)
+Replica 3 delivered u10 ts=(3, 2)
+Replica 3 delivered u6 ts=(3, 3)
+Replica 3 delivered u8 ts=(4, 3)
+Replica 1 delivered u8 ts=(4, 3)
+Replica 2 delivered u8 ts=(4, 3)
+
+Final States:
+Replica 1 | clock=53 | delivered=['u5', 'u1', 'u2', 'u7', 'u3', 'u4', 'u9', 'u10', 'u6', 'u8'] | store={'Y': 5, 'X': 5, 'Z': 2}
+Replica 2 | clock=53 | delivered=['u5', 'u1', 'u2', 'u7', 'u3', 'u4', 'u9', 'u10', 'u6', 'u8'] | store={'Y': 5, 'X': 5, 'Z': 2}
+Replica 3 | clock=54 | delivered=['u5', 'u1', 'u2', 'u7', 'u3', 'u4', 'u9', 'u10', 'u6', 'u8'] | store={'Y': 5, 'X': 5, 'Z': 2}
 
 Consistency checks:
 Same delivery order across replicas: True
